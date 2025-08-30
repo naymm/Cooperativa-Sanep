@@ -12,17 +12,23 @@ import { toast } from "sonner";
 import FormInscricaoPublica from "../components/inscricoes/FormInscricaoPublica";
 
 export default function CadastroPublico() {
+  console.log("=== CadastroPublico renderizado ===");
+  
   const [inscricaoEnviada, setInscricaoEnviada] = useState(false);
   const [numeroInscricao, setNumeroInscricao] = useState("");
   const [planosDisponiveis, setPlanosDisponiveis] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    console.log("useEffect carregarPlanos executado");
     carregarPlanos();
   }, []);
 
   const carregarPlanos = async () => {
+    console.log("Carregando planos...");
     try {
       const planos = await AssinaturaPlano.list();
+      console.log("Planos carregados:", planos);
       setPlanosDisponiveis(Array.isArray(planos) ? planos.filter(p => p.ativo) : []);
     } catch (error) {
       console.error("Erro ao carregar planos:", error);
@@ -31,6 +37,19 @@ export default function CadastroPublico() {
   };
 
   const handleSubmitInscricao = async (dadosInscricao) => {
+    console.log("=== handleSubmitInscricao chamada ===");
+    console.log("isSubmitting:", isSubmitting);
+    console.log("inscricaoEnviada:", inscricaoEnviada);
+    
+    // Prevenir submissões duplas
+    if (isSubmitting || inscricaoEnviada) {
+      console.log("Submissão bloqueada - já em progresso ou já enviada");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    console.log("Iniciando submissão...");
+    
     try {
       console.log("Submetendo inscrição com dados:", dadosInscricao);
 
@@ -105,6 +124,8 @@ export default function CadastroPublico() {
       }
 
       toast.error(`${errorMessage}. Por favor, tente novamente.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

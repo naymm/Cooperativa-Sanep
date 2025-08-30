@@ -79,6 +79,7 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
 
   const [errors, setErrors] = useState({});
   const [fileUploading, setFileUploading] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (formData.assinatura_plano_id && planosDisponiveis) {
@@ -90,11 +91,6 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
   }, [formData.assinatura_plano_id, planosDisponiveis]);
 
   const validateStep = () => {
-    // Desativar temporariamente a obrigatoriedade para inscrição pública
-    if (isNew) {
-      setErrors({});
-      return true;
-    }
     const newErrors = {};
     
     if (currentStep === 1) {
@@ -140,6 +136,12 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
       }
     }
     
+    // Passo 4 (Documentos) - Sem validação obrigatória para inscrições públicas
+    if (currentStep === 4) {
+      // Documentos são opcionais para inscrições públicas
+      // Não há validação obrigatória aqui
+    }
+    
     if (currentStep === 5) {
       if (!formData.assinatura_plano_id) newErrors.assinatura_plano_id = "Selecione um pacote de assinatura.";
     }
@@ -164,12 +166,19 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isNew && !validateStep()) {
+    
+    // Prevenir submissões duplas
+    if (isSubmitting) {
+      return;
+    }
+    
+    if (!validateStep()) {
       alert("Por favor, corrija os erros antes de submeter.");
       return;
     }
     
-    if (!isNew) {
+    // Para inscrições públicas, os documentos são opcionais
+    if (isNew) {
       const allDocsUploadedOrSkipped = Object.values(formData.documentos_anexados).every(doc => doc !== null) || 
                                        confirm("Existem documentos pendentes. Deseja continuar e adicioná-los mais tarde?");
       if (!allDocsUploadedOrSkipped) {
@@ -178,10 +187,14 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
       }
     }
 
+    setIsSubmitting(true);
+    
     try {
       await onSubmit(formData);
     } catch (error) {
       console.error("Erro ao submeter:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -590,7 +603,7 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
             <div>
               <Label htmlFor="assinatura_plano_id">Pacote de Assinatura</Label>
               <Select value={formData.assinatura_plano_id} onValueChange={(value) => handleChange("assinatura_plano_id", value)}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className={`mt-1 ${errors.assinatura_plano_id ? 'border-red-500' : ''}`}>
                   <SelectValue placeholder="Selecione o plano..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -606,6 +619,9 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.assinatura_plano_id && (
+                <p className="text-red-500 text-sm mt-1">{errors.assinatura_plano_id}</p>
+              )}
             </div>
             
             {formData.assinatura_plano_id && formData.taxa_inscricao_selecionada !== "" && (
@@ -730,10 +746,20 @@ export default function FormInscricaoPublica({ onSubmit, planosDisponiveis }) {
             ) : (
               <Button 
                 type="submit" 
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                disabled={isSubmitting}
+                className="bg-green-600 hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <UserPlus className="w-4 h-4" /> 
-                Submeter Inscrição
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" /> 
+                    Submeter Inscrição
+                  </>
+                )}
               </Button>
             )}
           </div>
